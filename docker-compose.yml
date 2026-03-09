@@ -1,0 +1,23 @@
+# docker-compose.yml
+
+services:
+  coingecko-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: coingecko-dev
+    ports:
+      - "8081:8081"
+      - "19000:19000"
+      - "19001:19001"
+      - "19002:19002"
+    volumes:
+      # Sincroniza seu código local com o container
+      # Editar o código na máquina reflete instantaneamente
+      - .:/app
+      # Preserva o node_modules do container (não sobrescreve com o local)
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    stdin_open: true
+    tty: true
