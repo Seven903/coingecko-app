@@ -14,72 +14,70 @@ import { useCoins } from '../../hooks/useCoins';
 import { CoinCard } from '../../components/CoinCard';
 import { ErrorFallback } from '../../components/ErrorFallback';
 import { LoadingSkeleton } from '../../components/LoadingSkeleton';
+import { DataFreshnessIndicator } from '../../components/DataFreshnessIndicator';
 import { Coin } from '../../types/coin.types';
-
-const COINS_PER_PAGE = 20;
 
 export function MarketScreen() {
   const {
-    data,
+    coins,
+    meta,
     isLoading,
     isError,
+    isFetching,
     error,
     refetch,
-    isRefetching,
-  } = useCoins({ perPage: COINS_PER_PAGE });
+  } = useCoins({ perPage: 20 });
 
-  // ─── Handlers ─────────────────────────────────────────────────────────
   const handleCoinPress = useCallback((coin: Coin) => {
-    // Ponto de extensão: navegação para DetailScreen no futuro
-    console.log(`Navegando para: ${coin.id}`);
+    // Ponto de extensão: navegação para DetailScreen
+    console.log(`[Nav] → ${coin.id}`);
   }, []);
 
-  const handleRefetch = useCallback(() => {
-    refetch();
-  }, [refetch]);
-
-  // ─── Render Item ──────────────────────────────────────────────────────
   const renderCoin: ListRenderItem<Coin> = useCallback(
-    ({ item }) => (
-      <CoinCard coin={item} onPress={handleCoinPress} />
-    ),
+    ({ item }) => <CoinCard coin={item} onPress={handleCoinPress} />,
     [handleCoinPress]
   );
 
   const keyExtractor = useCallback((item: Coin) => item.id, []);
 
-  // ─── Estados de UI ────────────────────────────────────────────────────
+  // ─── Loading apenas quando não há nenhum dado ─────────────────────
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <Header />
-        <LoadingSkeleton count={COINS_PER_PAGE} />
+        <Header meta={null} isFetching={false} isError={false} />
+        <LoadingSkeleton count={12} />
       </SafeAreaView>
     );
   }
 
-  if (isError && error) {
+  // ─── Erro sem cache disponível ────────────────────────────────────
+  if (isError && coins.length === 0 && error) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <Header />
-        <ErrorFallback error={error} onRetry={handleRefetch} />
+        <Header meta={null} isFetching={false} isError={true} />
+        <ErrorFallback error={error} onRetry={refetch} />
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Header />
+      <Header meta={meta} isFetching={isFetching} isError={isError} />
       <FlatList
-        data={data}
+        data={coins}
         keyExtractor={keyExtractor}
         renderItem={renderCoin}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        // Otimizações de performance para listas financeiras
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={8}
+        windowSize={10}
+        initialNumToRender={10}
         refreshControl={
           <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={handleRefetch}
+            refreshing={isFetching}
+            onRefresh={refetch}
             tintColor="#f7931a"
             colors={['#f7931a']}
           />
@@ -92,12 +90,27 @@ export function MarketScreen() {
   );
 }
 
-// ─── Sub-componente Header ─────────────────────────────────────────────────
-function Header() {
+// ─── Header com DataFreshnessIndicator ────────────────────────────────────
+interface HeaderProps {
+  meta: ReturnType<typeof useCoins>['meta'] | null;
+  isFetching: boolean;
+  isError: boolean;
+}
+
+function Header({ meta, isFetching, isError }: HeaderProps) {
   return (
     <View style={styles.header}>
-      <Text style={styles.headerTitle}>Mercado</Text>
-      <Text style={styles.headerSubtitle}>Top moedas por market cap</Text>
+      <View>
+        <Text style={styles.headerTitle}>Mercado</Text>
+        <Text style={styles.headerSubtitle}>Top moedas por market cap</Text>
+      </View>
+      {meta && (
+        <DataFreshnessIndicator
+          meta={meta}
+          isFetching={isFetching}
+          isError={isError}
+        />
+      )}
     </View>
   );
 }
@@ -108,23 +121,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#0d0d0d',
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingVertical: 18,
     borderBottomWidth: 1,
     borderBottomColor: '#1a1a1a',
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '800',
     color: '#ffffff',
   },
   headerSubtitle: {
-    fontSize: 13,
-    color: '#666',
+    fontSize: 12,
+    color: '#555',
     marginTop: 2,
   },
   list: {
-    paddingBottom: 32,
+    paddingBottom: 40,
   },
   emptyText: {
     color: '#555',

@@ -2,6 +2,8 @@
 
 import { apiClient } from './client';
 import { ENDPOINTS } from './endpoints';
+import { CoinGeckoRawCoin } from '../types/coin.types';
+import { mapRawListToDomain } from '../utils/coinMapper';
 import { CoinsListResponse } from '../types/coin.types';
 
 export interface FetchCoinsParams {
@@ -15,7 +17,7 @@ export async function fetchCoins({
   perPage = 20,
   page = 1,
 }: FetchCoinsParams = {}): Promise<CoinsListResponse> {
-  const { data } = await apiClient.get<CoinsListResponse>(
+  const { data } = await apiClient.get<CoinGeckoRawCoin[]>(
     ENDPOINTS.coins.markets,
     {
       params: {
@@ -23,11 +25,13 @@ export async function fetchCoins({
         order: 'market_cap_desc',
         per_page: perPage,
         page,
-        sparkline: false,
+        sparkline: true,              // ← ativado
         price_change_percentage: '24h',
+        include_24hr_vol: true,       // ← volume explícito
       },
     }
   );
 
-  return data;
+  // Transforma dado bruto da API → domínio interno tipado
+  return mapRawListToDomain(data);
 }

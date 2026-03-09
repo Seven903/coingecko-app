@@ -9,40 +9,34 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Coin } from '../../types/coin.types';
+import { SparklineChart } from '../SparklineChart';
+import {
+  formatPrice,
+  formatCompactNumber,
+  formatPercentage,
+  getTrendColor,
+} from '../../utils/formatters';
 
 interface CoinCardProps {
   coin: Coin;
   onPress?: (coin: Coin) => void;
 }
 
-function formatPrice(value: number): string {
-  return value.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: value < 1 ? 6 : 2,
-  });
-}
-
-function formatMarketCap(value: number): string {
-  if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
-  if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
-  if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
-  return `$${value.toLocaleString()}`;
-}
-
-function PriceChange({ value }: { value: number }) {
-  const isPositive = value >= 0;
-  const color = isPositive ? '#00c896' : '#ff4d4d';
-  const arrow = isPositive ? '▲' : '▼';
+// ─── Sub-componente: Badge de variação ────────────────────────────────────
+function ChangeBadge({ value }: { value: number }) {
+  const color = getTrendColor(value);
+  const arrow = value >= 0 ? '▲' : '▼';
 
   return (
-    <Text style={[styles.priceChange, { color }]}>
-      {arrow} {Math.abs(value).toFixed(2)}%
-    </Text>
+    <View style={[styles.badge, { backgroundColor: `${color}20` }]}>
+      <Text style={[styles.badgeText, { color }]}>
+        {arrow} {formatPercentage(Math.abs(value))}
+      </Text>
+    </View>
   );
 }
 
+// ─── Componente principal ─────────────────────────────────────────────────
 export const CoinCard = memo(function CoinCard({
   coin,
   onPress,
@@ -51,11 +45,11 @@ export const CoinCard = memo(function CoinCard({
     <TouchableOpacity
       style={styles.container}
       onPress={() => onPress?.(coin)}
-      activeOpacity={0.7}
+      activeOpacity={0.75}
     >
-      {/* Rank + Avatar */}
+      {/* ── Coluna esquerda: rank + avatar ── */}
       <View style={styles.leftSection}>
-        <Text style={styles.rank}>#{coin.market_cap_rank}</Text>
+        <Text style={styles.rank}>#{coin.marketCap.rank}</Text>
         <Image
           source={{ uri: coin.image }}
           style={styles.avatar}
@@ -63,26 +57,45 @@ export const CoinCard = memo(function CoinCard({
         />
       </View>
 
-      {/* Nome + Symbol */}
+      {/* ── Coluna central: nome + métricas ── */}
       <View style={styles.infoSection}>
         <Text style={styles.name} numberOfLines={1}>
           {coin.name}
         </Text>
         <Text style={styles.symbol}>{coin.symbol.toUpperCase()}</Text>
-        <Text style={styles.marketCap}>
-          MCap: {formatMarketCap(coin.market_cap)}
-        </Text>
+
+        <View style={styles.metricsRow}>
+          <Text style={styles.metricLabel}>
+            Vol:{' '}
+            <Text style={styles.metricValue}>
+              {formatCompactNumber(coin.volume.total24h)}
+            </Text>
+          </Text>
+          <Text style={styles.metricSeparator}>·</Text>
+          <Text style={styles.metricLabel}>
+            MCap:{' '}
+            <Text style={styles.metricValue}>
+              {formatCompactNumber(coin.marketCap.value)}
+            </Text>
+          </Text>
+        </View>
       </View>
 
-      {/* Preço + Variação */}
-      <View style={styles.priceSection}>
-        <Text style={styles.price}>{formatPrice(coin.current_price)}</Text>
-        <PriceChange value={coin.price_change_percentage_24h} />
+      {/* ── Coluna direita: sparkline + preço + variação ── */}
+      <View style={styles.rightSection}>
+        <SparklineChart
+          sparkline={coin.sparkline}
+          width={72}
+          height={32}
+        />
+        <Text style={styles.price}>
+          {formatPrice(coin.price.current)}
+        </Text>
+        <ChangeBadge value={coin.price.changePercentage24h} />
       </View>
     </TouchableOpacity>
   );
 });
-
 
 const styles = StyleSheet.create({
   container: {
@@ -97,48 +110,67 @@ const styles = StyleSheet.create({
   leftSection: {
     alignItems: 'center',
     gap: 4,
-    width: 48,
+    width: 44,
   },
   rank: {
     fontSize: 10,
-    color: '#555',
+    color: '#444',
     fontWeight: '600',
   },
   avatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
+    backgroundColor: '#1a1a1a',
   },
   infoSection: {
     flex: 1,
-    gap: 2,
+    gap: 3,
   },
   name: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     color: '#ffffff',
   },
   symbol: {
     fontSize: 12,
-    color: '#888',
+    color: '#666',
     fontWeight: '500',
   },
-  marketCap: {
-    fontSize: 11,
-    color: '#555',
+  metricsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     marginTop: 2,
   },
-  priceSection: {
+  metricLabel: {
+    fontSize: 10,
+    color: '#555',
+  },
+  metricValue: {
+    color: '#888',
+    fontWeight: '600',
+  },
+  metricSeparator: {
+    fontSize: 10,
+    color: '#333',
+  },
+  rightSection: {
     alignItems: 'flex-end',
     gap: 4,
   },
   price: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: '#ffffff',
   },
-  priceChange: {
-    fontSize: 12,
-    fontWeight: '600',
+  badge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
 });
