@@ -1,5 +1,3 @@
-# docker-compose.yml
-
 services:
   coingecko-app:
     build:
@@ -12,12 +10,12 @@ services:
       - "19001:19001"
       - "19002:19002"
     volumes:
-      # Sincroniza seu código local com o container
-      # Editar o código na máquina reflete instantaneamente
       - .:/app
-      # Preserva o node_modules do container (não sobrescreve com o local)
       - /app/node_modules
     environment:
       - NODE_ENV=development
+      - CI=1
+      - EXPO_NO_TELEMETRY=1
+      - REACT_NATIVE_PACKAGER_HOSTNAME=192.168.0.3 # ← seu IP aqui
     stdin_open: true
     tty: true
